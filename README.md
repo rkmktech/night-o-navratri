@@ -89,7 +89,7 @@ Keep the dataset and assets in their expected locations:
     └── requirements.txt
 ```
 
-The local MP4 files are excluded from Git history. If you obtain the project through a source-only clone, supply both video files in `assets/`. Missing guide videos produce an explanatory message instead of a player.
+Both skeleton-guide MP4 files are tracked in Git and included in the public repository under `assets/`, so a clone includes the demonstration videos. App Storage backups remain available for deployment restoration. Missing guide videos produce an explanatory message instead of a player.
 
 ### 3. Start the Application
 

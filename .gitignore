@@ -29,7 +29,6 @@ node_modules
 !.vscode/extensions.json
 
 # misc
-/assets/*.mp4
 /attached_assets/0_GarbhaBasicStep_1791697517081.mp4
 /attached_assets/0_DandiyaBasicStep_1791697522488.mp4
 /.sass-cache
@@ -52,6 +51,6 @@ Thumbs.db
 .cache/
 .local/
 
-# Keep duplicate chat uploads out of Git; restore the guides from App Storage.
+# Keep duplicate chat uploads out of Git; the canonical guides are tracked in assets/.
 /attached_assets/0_GarbhaBasicStep_1791700084803.mp4
 /attached_assets/0_DandiyaBasicStep_1791700088426.mp4
