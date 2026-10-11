@@ -1,0 +1,21 @@
+{
+  "name": "@workspace/scripts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "hello": "tsx ./src/hello.ts",
+    "test:camera": "playwright test --config ./camera-tests/playwright.config.mjs",
+    "test:pose:compatibility": "playwright test --config ./pose-compatibility/playwright.config.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.0",
+    "@types/node": "catalog:",
+    "tsx": "catalog:"
+  },
+  "dependencies": {
+    "@google-cloud/storage": "^8.4.0",
+    "google-auth-library": "^11.2.0"
+  }
+}

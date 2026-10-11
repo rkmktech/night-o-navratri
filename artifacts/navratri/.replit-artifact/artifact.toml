@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Night 'O' Navrathri"
+description = "Streamlit ticket finder and dance studio."
+version = "1.0.0"
+id = "artifacts/navratri"
+router = "path"
+
+[[services]]
+name = "web"
+paths = ["/"]
+localPort = 8080
+
+[services.env]
+PORT = "8080"
+BASE_PATH = "/"
+
+[services.development]
+run = "pnpm --filter @workspace/navratri run dev"
+
+[services.production.build]
+args = ["python", "-c", "import streamlit, pandas, plotly"]
+
+[services.production.run]
+args = ["pnpm", "--filter", "@workspace/navratri", "run", "serve"]
+
+[services.production.run.env]
+PORT = "8080"
+
+[services.production.health.startup]
+path = "/_stcore/health"

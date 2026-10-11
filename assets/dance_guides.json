@@ -1,0 +1,12 @@
+[
+  {
+    "filename": "garba_skeleton.mp4",
+    "object": "dance-guides/f2ccac9a6ea0c78bddf7630508fd8a0c1a2db438e7ed117f89790c0e184ab4f5.mp4",
+    "sha256": "f2ccac9a6ea0c78bddf7630508fd8a0c1a2db438e7ed117f89790c0e184ab4f5"
+  },
+  {
+    "filename": "dandiya_skeleton.mp4",
+    "object": "dance-guides/9098346fe5ed5faf77e25d297610292752ffa5cd5f169780e0fd8c6244d8b5bd.mp4",
+    "sha256": "9098346fe5ed5faf77e25d297610292752ffa5cd5f169780e0fd8c6244d8b5bd"
+  }
+]

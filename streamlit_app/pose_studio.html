@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body>
+  <p>Start camera asks your browser for camera access (no microphone).
+    Video stays in this browser and is not recorded or uploaded.
+    Model files are downloaded from Google and JavaScript libraries from jsDelivr.</p>
+  <button id="start" type="button">Start camera</button>
+  <button id="stop" type="button" disabled>Stop camera</button>
+  <p id="status" role="status" aria-live="polite">Camera is off. Stand back so your full body fits in view.</p>
+  <video id="video" playsinline muted hidden></video>
+  <canvas id="canvas" width="320" height="320" hidden aria-label="Live mirrored camera with detected pose"></canvas>
+  <p id="feedback" role="status" aria-live="polite">No prediction yet.</p>
+  <div id="scores" aria-label="Pose class confidence scores"></div>
+  <p>Scores are model confidence, not a rating of dance quality or rhythm.
+    This model recognizes its five trained Garba/Dandiya sample steps.
+    It may misclassify unfamiliar movements. Keep the practice area clear.</p>
+<script>
+(() => {
+  const modelURL = __MODEL_URL__;
+  const start = document.getElementById("start");
+  const stop = document.getElementById("stop");
+  const status = document.getElementById("status");
+  const feedback = document.getElementById("feedback");
+  const scores = document.getElementById("scores");
+  const video = document.getElementById("video");
+  const canvas = document.getElementById("canvas");
+  const context = canvas.getContext("2d");
+  let model, stream, frame, generation = 0;
+  const scripts = new Map();
+
+  function loadScript(url) {
+    if (!scripts.has(url)) {
+      const promise = new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = url;
+        script.onload = resolve;
+        script.onerror = () => { script.remove(); reject(new Error("Library download failed.")); };
+        document.head.appendChild(script);
+      }).catch(error => { scripts.delete(url); throw error; });
+      scripts.set(url, promise);
+    }
+    return scripts.get(url);
+  }
+
+  function releaseCamera(message = "Camera is off. Click Start camera to begin again.") {
+    generation++;
+    cancelAnimationFrame(frame);
+    if (stream) stream.getTracks().forEach(track => track.stop());
+    stream = null;
+    video.pause();
+    video.srcObject = null;
+    canvas.hidden = true;
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    scores.replaceChildren();
+    feedback.textContent = "No prediction yet.";
+    status.textContent = message;
+    start.disabled = false;
+    stop.disabled = true;
+  }
+
+  function showScores(predictions) {
+    scores.replaceChildren();
+    for (const prediction of predictions) {
+      const row = document.createElement("p");
+      const label = document.createElement("span");
+      label.textContent = `${prediction.className.trim()}: ${(prediction.probability * 100).toFixed(1)}% `;
+      const bar = document.createElement("progress");
+      bar.max = 1;
+      bar.value = prediction.probability;
+      bar.setAttribute("aria-label", `${prediction.className.trim()} confidence`);
+      row.append(label, bar);
+      scores.append(row);
+    }
+  }
+
+  async function predict(token) {
+    if (token !== generation || !stream) return;
+    try {
+      context.save();
+      context.translate(canvas.width, 0);
+      context.scale(-1, 1);
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      context.restore();
+      const {pose, posenetOutput} = await model.estimatePose(canvas);
+      if (token !== generation) return;
+      if (!pose || pose.score < 0.25) {
+        scores.replaceChildren();
+        feedback.textContent = "No clear pose detected. Move back, face the camera and improve lighting.";
+      } else {
+        const predictions = await model.predict(posenetOutput);
+        if (token !== generation) return;
+        tmPose.drawKeypoints(pose.keypoints, 0.5, context);
+        tmPose.drawSkeleton(pose.keypoints, 0.5, context);
+        showScores(predictions);
+        const best = predictions.reduce((a, b) => a.probability > b.probability ? a : b);
+        const message = best.probability >= 0.70
+          ? `Closest trained pose: ${best.className.trim()} (${Math.round(best.probability * 100)}% confidence).`
+          : "Uncertain match. Hold a trained sample pose and keep your full body visible.";
+        // Avoid announcing minor per-frame confidence changes to screen readers.
+        if (feedback.textContent !== message) feedback.textContent = message;
+      }
+      frame = requestAnimationFrame(() => predict(token));
+    } catch (error) {
+      if (token !== generation) return;
+      console.error(error);
+      releaseCamera("Pose analysis failed. Camera stopped. Check your connection and try again.");
+    }
+  }
+
+  start.addEventListener("click", async () => {
+    start.disabled = true;
+    stop.disabled = false;
+    const token = ++generation;
+    try {
+      if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+        throw new Error("Camera requires a supported browser and HTTPS.");
+      }
+      status.textContent = "Loading the trained pose model… Camera is still off.";
+      // tmPose 0.8.6 requires tfjs 1.3.1, regardless of export metadata version.
+      await loadScript("https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js");
+      await loadScript("https://cdn.jsdelivr.net/npm/@teachablemachine/pose@0.8.6/dist/teachablemachine-pose.min.js");
+      if (token !== generation) return;
+      if (!model) model = await tmPose.load(modelURL + "model.json", modelURL + "metadata.json");
+      if (token !== generation) return;
+      status.textContent = "Please allow camera access in your browser to start pose feedback.";
+      const acquired = await navigator.mediaDevices.getUserMedia({
+        video: {width: 320, height: 320, facingMode: "user"}, audio: false
+      });
+      // Stop can be pressed while the permission dialog is open.
+      if (token !== generation) { acquired.getTracks().forEach(track => track.stop()); return; }
+      stream = acquired;
+      video.srcObject = stream;
+      stream.getVideoTracks()[0].addEventListener("ended", () => {
+        if (token === generation) releaseCamera("Camera disconnected. Reconnect it and click Start camera.");
+      });
+      await video.play();
+      if (token !== generation) return;
+      canvas.hidden = false;
+      status.textContent = "Camera is on. Live pose feedback is running in your browser.";
+      await predict(token);
+    } catch (error) {
+      if (token !== generation) return;
+      console.error(error);
+      let message = "Could not load the pose model or start the camera. Check your connection and try again.";
+      if (["NotAllowedError", "SecurityError"].includes(error.name)) {
+        message = "Camera access was denied or blocked. Allow camera access in browser settings, then try again.";
+      } else if (error.name === "NotFoundError") {
+        message = "No camera found. Connect a camera and try again.";
+      } else if (error.name === "NotReadableError") {
+        message = "Camera is busy or unavailable. Close other camera apps and try again.";
+      } else if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+        message = "Camera requires a supported browser and HTTPS. Open the app in a secure browser tab.";
+      }
+      releaseCamera(message);
+    }
+  });
+  stop.addEventListener("click", () => releaseCamera());
+  window.addEventListener("pagehide", () => releaseCamera());
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) releaseCamera("Camera stopped while the page was hidden. Click Start camera to resume.");
+  });
+  // Streamlit keeps tab contents mounted: stop when this tab leaves the viewport.
+  new IntersectionObserver(entries => {
+    if (!entries[0].isIntersecting && stop.disabled === false) {
+      releaseCamera("Camera stopped when the studio was hidden. Click Start camera to resume.");
+    }
+  }).observe(canvas.parentElement);
+})();
+</script>
+</body>
+</html>

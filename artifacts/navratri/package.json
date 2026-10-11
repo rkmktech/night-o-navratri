@@ -1,0 +1,11 @@
+{
+  "name": "@workspace/navratri",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "bash ../../scripts/start-streamlit.sh",
+    "build": "python -c 'import streamlit, pandas, plotly'",
+    "serve": "bash ../../scripts/start-streamlit.sh",
+    "typecheck": "python -m py_compile ../../streamlit_app/app.py ../../streamlit_app/dance_studio.py"
+  }
+}
